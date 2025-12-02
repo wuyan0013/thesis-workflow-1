@@ -1,0 +1,41 @@
+# 论文工作流配置文件示例
+# 复制此文件为 config.yaml 并填入你的配置
+
+# Claude API 配置
+claude:
+  api_key: "your-api-key-here"  # 从环境变量 ANTHROPIC_API_KEY 读取更安全
+  model: "claude-sonnet-4-20250514"  # 推荐模型
+  max_tokens: 4096
+
+# 论文默认配置
+thesis:
+  # 学校信息
+  university: "XX大学"
+  college: "XX学院"
+
+  # 论文格式
+  font:
+    title: "黑体"
+    heading: "黑体"
+    body: "宋体"
+    english: "Times New Roman"
+
+  font_size:
+    title: 22        # 二号
+    heading1: 16     # 三号
+    heading2: 14     # 四号
+    heading3: 12     # 小四
+    body: 12         # 小四
+
+  # 页面设置
+  page:
+    margin_top: 2.54     # cm
+    margin_bottom: 2.54
+    margin_left: 3.17
+    margin_right: 3.17
+    line_spacing: 1.5    # 1.5倍行距
+
+# 输出配置
+output:
+  directory: "./output"
+  filename_template: "{title}_{date}"

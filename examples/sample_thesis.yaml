@@ -1,0 +1,54 @@
+# 论文配置示例
+# 复制此文件并修改为你的论文信息
+
+# 基本信息
+title: "基于深度学习的图像识别技术研究"
+topic: "深度学习在图像识别中的应用"
+major: "计算机科学与技术"
+
+# 作者信息
+author: "张三"
+student_id: "2021001234"
+supervisor: "李四 教授"
+
+# 论文要求
+word_count: 12000
+requirements: |
+  1. 论文需包含理论分析和实验验证
+  2. 需要对比至少3种不同的深度学习模型
+  3. 实验需在公开数据集上进行
+
+# 章节配置（可选，不配置则使用默认结构）
+chapters:
+  - title: "第一章 绪论"
+    requirements: "介绍研究背景、目的、意义，国内外研究现状"
+    word_count: 2000
+
+  - title: "第二章 深度学习理论基础"
+    requirements: "CNN、RNN等基本原理，常用模型架构介绍"
+    word_count: 2500
+
+  - title: "第三章 研究方法与实验设计"
+    requirements: "数据集介绍、模型选择、实验环境配置"
+    word_count: 2000
+
+  - title: "第四章 实验结果与分析"
+    requirements: "模型训练结果、对比分析、可视化展示"
+    word_count: 3000
+
+  - title: "第五章 结论与展望"
+    requirements: "总结研究成果，分析不足，提出未来研究方向"
+    word_count: 1500
+
+# 参考文献（可选）
+references:
+  - "LeCun Y, Bengio Y, Hinton G. Deep learning[J]. Nature, 2015, 521(7553): 436-444."
+  - "Krizhevsky A, Sutskever I, Hinton G E. ImageNet classification with deep convolutional neural networks[C]. NeurIPS, 2012."
+  - "He K, Zhang X, Ren S, et al. Deep residual learning for image recognition[C]. CVPR, 2016."
+
+# 致谢内容（可选）
+acknowledgement: |
+  本论文的完成离不开导师的悉心指导和同学们的帮助。
+  在此，我要特别感谢我的导师李四教授，他在论文选题、研究方法和写作规范等方面给予了我宝贵的指导。
+  同时，也要感谢实验室的同学们在实验过程中提供的帮助。
+  最后，感谢家人一直以来的理解和支持。

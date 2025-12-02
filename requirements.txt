@@ -1,0 +1,17 @@
+# 论文工作流依赖
+# Thesis Workflow Dependencies
+
+# Claude API
+anthropic>=0.39.0
+
+# Word文档生成
+python-docx>=1.1.0
+
+# 配置管理
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# 工具库
+rich>=13.7.0      # 终端美化输出
+click>=8.1.7     # 命令行接口
+jinja2>=3.1.2    # 模板引擎
