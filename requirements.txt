@@ -15,3 +15,7 @@ python-dotenv>=1.0.0
 rich>=13.7.0      # 终端美化输出
 click>=8.1.7     # 命令行接口
 jinja2>=3.1.2    # 模板引擎
+
+# Web界面
+streamlit>=1.29.0  # Streamlit GUI
+gradio>=4.0.0      # Gradio GUI

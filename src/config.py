@@ -14,8 +14,8 @@ class Config:
     """配置管理器"""
 
     def __init__(self, config_path: Optional[str] = None):
-        # 加载环境变量
-        load_dotenv()
+        # 加载环境变量（override=True 确保 .env 文件优先于系统环境变量）
+        load_dotenv(override=True)
 
         # 确定配置文件路径
         if config_path is None:
@@ -61,9 +61,14 @@ class Config:
         return os.getenv("ANTHROPIC_API_KEY") or self.get("claude.api_key", "")
 
     @property
+    def claude_base_url(self) -> Optional[str]:
+        """获取Claude API基础URL（支持代理）"""
+        return os.getenv("ANTHROPIC_BASE_URL") or self.get("claude.base_url")
+
+    @property
     def claude_model(self) -> str:
-        """获取Claude模型名称"""
-        return self.get("claude.model", "claude-sonnet-4-20250514")
+        """获取Claude模型名称，优先从环境变量读取"""
+        return os.getenv("CLAUDE_MODEL") or self.get("claude.model", "claude-3-5-sonnet-20241022")
 
     @property
     def max_tokens(self) -> int:

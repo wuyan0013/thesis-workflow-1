@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(D:/python/python/python3.12.2/python.exe app.py)",
+      "Bash(timeout /t 3 /nobreak)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

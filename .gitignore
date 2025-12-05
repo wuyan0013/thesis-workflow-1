@@ -25,3 +25,8 @@ output/*.pdf
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# 临时文件
+nul
+test_output.txt
+*~$*.docx
