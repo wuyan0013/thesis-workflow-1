@@ -60,11 +60,13 @@ class DocxBuilder:
         section.page_width = Cm(21)
         section.page_height = Cm(29.7)
 
-        # 页边距（按格式要求：左右3cm）
-        section.top_margin = Cm(2.5)
-        section.bottom_margin = Cm(2.5)
+        # 页边距（按规范要求：上下2.6cm，左右3cm，页眉页脚1.8cm）
+        section.top_margin = Cm(2.6)
+        section.bottom_margin = Cm(2.6)
         section.left_margin = Cm(3.0)
         section.right_margin = Cm(3.0)
+        section.header_distance = Cm(1.8)
+        section.footer_distance = Cm(1.8)
 
         # 设置样式
         self._setup_styles()
@@ -132,14 +134,16 @@ class DocxBuilder:
         Args:
             title: 目录标题
         """
-        # 目录标题 - 小一号(24pt)黑体，居中，字间空一格
+        # 目录标题 - 小二号(18pt)黑体加粗，居中，单倍行距，段前段后各24磅
         p = self.doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.paragraph_format.space_after = Pt(24)  # 段后空1行
+        p.paragraph_format.line_spacing = 1.0
+        p.paragraph_format.space_before = Pt(24)
+        p.paragraph_format.space_after = Pt(24)
         # 字间加空格
         spaced_title = " ".join(title)  # "目 录"
         run = p.add_run(spaced_title)
-        self._set_run_font(run, 'Times New Roman', '黑体', 24, bold=False)
+        self._set_run_font(run, 'Times New Roman', '黑体', 18, bold=True)
 
         # 插入目录域代码
         paragraph = self.doc.add_paragraph()
@@ -186,14 +190,14 @@ class DocxBuilder:
             abstract_en: 英文摘要（可选）
             keywords_en: 英文关键词列表（可选）
         """
-        # 摘要标题 - 小一号(24pt)黑体，居中，字间空一格，单倍行距
+        # 摘要标题 - 小二号(18pt)黑体加粗，居中，单倍行距，段前段后各24磅
         p = self.doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.line_spacing = 1.0
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(24)  # 段后空1行
+        p.paragraph_format.space_before = Pt(24)
+        p.paragraph_format.space_after = Pt(24)
         run = p.add_run("摘 要")  # 字间空一格
-        self._set_run_font(run, 'Times New Roman', '黑体', 24, bold=False)
+        self._set_run_font(run, 'Times New Roman', '黑体', 18, bold=True)
 
         # 摘要内容 - 四号宋体(14pt)，1.5倍行距，支持多段落
         # 按换行符分割摘要内容，每段都要首行缩进
@@ -212,12 +216,12 @@ class DocxBuilder:
         # 空一行
         self.doc.add_paragraph()
 
-        # 关键词 - 四号宋体(14pt)，首行缩进两格
+        # 关键词 - "关键词"三字四号黑体，内容四号宋体，首行缩进两格
         p = self.doc.add_paragraph()
         p.paragraph_format.first_line_indent = Cm(0.74)  # 首行缩进
         p.paragraph_format.line_spacing = 1.5
         run = p.add_run("关键词：")
-        self._set_run_font(run, 'Times New Roman', '宋体', 14, bold=False)
+        self._set_run_font(run, 'Times New Roman', '黑体', 14, bold=False)
         run = p.add_run("；".join(keywords_cn))
         self._set_run_font(run, 'Times New Roman', '宋体', 14)
 

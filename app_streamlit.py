@@ -587,8 +587,7 @@ if st.session_state.step == 1:
             <span style="color: #71717A;">步骤1</span> 选择专业 →
             <span style="color: #71717A;">步骤2</span> 确定选题 →
             <span style="color: #71717A;">步骤3</span> 编辑章节 →
-            <span style="color: #71717A;">步骤4</span> 生成论文 →
-            <span style="color: #71717A;">步骤5</span> 答辩论文
+            <span style="color: #71717A;">步骤4</span> 生成论文 
         </div>
     </div>""", unsafe_allow_html=True)
 
