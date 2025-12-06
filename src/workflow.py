@@ -75,15 +75,20 @@ class ThesisConfig:
 class ThesisWorkflow:
     """论文生成工作流"""
 
-    def __init__(self, use_cli: bool = False):
+    def __init__(self, use_cli: bool = False, api_key: str = None, 
+                 base_url: str = None, model: str = None):
         """
         初始化工作流
 
         Args:
             use_cli: 是否使用CLI模式，默认False使用SDK模式（中转站API）
+            api_key: API Key（可选，优先于环境变量）
+            base_url: API Base URL（可选，用于中转站）
+            model: 模型名称（可选）
         """
         self.config = get_config()
-        self.client = ClaudeClient(use_cli=use_cli)
+        self.client = ClaudeClient(use_cli=use_cli, api_key=api_key, 
+                                   base_url=base_url, model=model)
         self.generator = ThesisGenerator(self.client)
 
     def generate_topics(self, major: str, count: int = 5) -> List[str]:

@@ -27,16 +27,21 @@ class ClaudeClient:
 
     DEFAULT_MODEL = "claude-opus-4-5-20251101"
 
-    def __init__(self, use_cli: bool = True, api_key: Optional[str] = None):
+    def __init__(self, use_cli: bool = True, api_key: Optional[str] = None, 
+                 base_url: Optional[str] = None, model: Optional[str] = None):
         """
         初始化客户端
 
         Args:
             use_cli: 是否使用 Claude CLI（默认 True）
             api_key: Anthropic API Key（仅在 use_cli=False 时使用）
+            base_url: API Base URL（可选，用于中转站）
+            model: 模型名称（可选）
         """
         self.use_cli = use_cli
         self.api_key = api_key
+        self.base_url = base_url
+        self.model_override = model
 
         if use_cli:
             # 检查 Claude CLI 是否可用
@@ -88,22 +93,30 @@ class ClaudeClient:
             from .config import get_config
 
             config = get_config()
-            api_key = self.api_key or config.claude_api_key
+            # 优先使用传入的非空参数，其次使用配置文件
+            api_key = self.api_key.strip() if self.api_key else None
+            api_key = api_key or config.claude_api_key
 
             if not api_key:
-                raise Exception("未配置 API Key，且 Claude CLI 不可用")
+                raise Exception("未配置 API Key，请在侧边栏设置或在 .env 文件中配置")
 
             client_kwargs = {"api_key": api_key}
-            base_url = config.claude_base_url
+            # 优先使用传入的非空 base_url
+            base_url = self.base_url.strip() if self.base_url else None
+            base_url = base_url or config.claude_base_url
             if base_url:
                 client_kwargs["base_url"] = base_url
 
             self.client = anthropic.Anthropic(**client_kwargs)
-            self.model = config.claude_model or self.DEFAULT_MODEL
+            # 优先使用传入的非空 model
+            model = self.model_override.strip() if self.model_override else None
+            self.model = model or config.claude_model or self.DEFAULT_MODEL
             self.max_tokens = config.max_tokens
 
             print(f"[OK] Anthropic SDK 已初始化")
             print(f"  模型: {self.model}")
+            if base_url:
+                print(f"  Base URL: {base_url}")
 
         except ImportError:
             raise Exception("anthropic 库未安装，请运行: pip install anthropic")
@@ -673,37 +686,37 @@ class ThesisGenerator:
 ### 1. 结构要求（约{word_count}字）
 答辩稿必须包含以下部分：
 
-**开场白（约150字）**
+**开场白（约80字）**
 - 向答辩委员会问好
 - 自我介绍（"我是XX专业的XXX"）
 - 论文题目介绍
 
-**选题背景与意义（约300字）**
+**选题背景与意义（约150字）**
 - 为什么选择这个课题
 - 研究的理论意义和实践价值
 - 不要照搬摘要，用口语化表达
 
-**研究内容概述（约800字）**
+**研究内容概述（约300字）**
 - 按章节顺序介绍主要内容
 - 突出重点，不要面面俱到
 - 用自己的语言阐述
 
-**研究方法与过程（约400字）**
+**研究方法与过程（约150字）**
 - 采用的研究方法
 - 研究过程中的经历和体会
-- 可以加入一些个人感受
 
-**主要结论与创新点（约500字）**
+
+**主要结论与创新点（约150字）**
 - 研究得出的主要结论
 - 本研究的创新之处（哪怕很小）
-- 实际应用价值
 
-**不足与展望（约250字）**
+
+**不足与展望（约50字）**
 - 诚恳承认研究的局限性
 - 未来研究方向
-- 体现学术谦虚
 
-**致谢（约100字）**
+
+**致谢（约20字）**
 - 感谢导师的指导
 - 感谢答辩委员会
 - 请求指正

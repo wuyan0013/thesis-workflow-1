@@ -7,11 +7,19 @@ High-end SaaS · Dark Mode · Rendered Visual Cards · No HTML Tags Visible
 import sys
 from pathlib import Path
 
+# 确保在导入其他模块前加载 .env
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env", override=True)
+
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.workflow import ThesisWorkflow, ThesisConfig
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+import io
 
 # ============ 页面配置 ============
 st.set_page_config(
@@ -450,23 +458,34 @@ if 'thesis_config' not in st.session_state:
     st.session_state.thesis_config = None
 if 'thesis_output' not in st.session_state:
     st.session_state.thesis_output = None
-if 'defense_paper' not in st.session_state:
-    st.session_state.defense_paper = None
+if 'api_base_url' not in st.session_state:
+    st.session_state.api_base_url = ""  # 留空则使用.env配置
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ""  # 留空则使用.env配置
+if 'api_model' not in st.session_state:
+    st.session_state.api_model = ""  # 留空则使用.env配置
+if 'show_api_key' not in st.session_state:
+    st.session_state.show_api_key = False
 
 def get_workflow():
     """获取工作流实例（通过中转站API调用）"""
-    if st.session_state.workflow is None:
-        from src.claude_client import ClaudeClient, ThesisGenerator
-
-        # 创建客户端（使用SDK模式，通过中转站API）
-        client = ClaudeClient(use_cli=False)
-
-        # 创建工作流
-        workflow = ThesisWorkflow(use_cli=False)
-        workflow.client = client
-        workflow.generator = ThesisGenerator(client)
-
-        st.session_state.workflow = workflow
+    # 每次都重新创建以使用最新的API设置
+    from src.claude_client import ClaudeClient, ThesisGenerator
+    
+    # 前端设置（可为空，空值会自动使用.env配置）
+    api_key = st.session_state.api_key
+    base_url = st.session_state.api_base_url
+    model = st.session_state.api_model
+    
+    # 创建工作流（传入前端设置，后端会自动处理空值回退）
+    workflow = ThesisWorkflow(
+        use_cli=False, 
+        api_key=api_key, 
+        base_url=base_url, 
+        model=model
+    )
+    
+    st.session_state.workflow = workflow
     return st.session_state.workflow
 
 def reset():
@@ -478,7 +497,6 @@ def reset():
     st.session_state.workflow = None
     st.session_state.thesis_config = None
     st.session_state.thesis_output = None
-    st.session_state.defense_paper = None
 
 # ============ 侧边栏 ============
 with st.sidebar:
@@ -509,10 +527,10 @@ with st.sidebar:
 
     # 进度指示
     st.markdown("### 📊 当前进度")
-    progress_val = (st.session_state.step - 1) / 5
+    progress_val = (st.session_state.step - 1) / 4
     st.progress(progress_val)
 
-    steps_text = ["选择专业", "确定选题", "编辑章节", "生成论文", "答辩论文"]
+    steps_text = ["选择专业", "确定选题", "编辑章节", "生成论文"]
     for i, txt in enumerate(steps_text, 1):
         if i < st.session_state.step:
             st.markdown(f"✅ ~~{txt}~~")
@@ -529,6 +547,8 @@ with st.sidebar:
 
     st.divider()
     st.caption("⚠️ 内容仅供学术参考")
+    
+
 
 # ============ 主内容区 ============
 
@@ -541,12 +561,24 @@ if st.session_state.step == 1:
         <p style="color: #9CA3AF; font-size: 1.15rem; margin: 0; line-height: 1.6;">基于 Claude Opus 4.5，为您生成具有<span style="color: #F59E0B; font-weight: 600;">广西本土特色</span>的高质量学术论文</p>
     </div>""", unsafe_allow_html=True)
 
-    # API 状态提示
-    st.markdown("""<div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin: 1rem 0;">
-        <div style="color: #22C55E; font-size: 0.9rem;">
-            <span style="font-weight: 600;">✓ API 已就绪</span> · 通过 Claude CLI 调用 Opus 4.5 模型
-        </div>
-    </div>""", unsafe_allow_html=True)
+    # API 设置（紧凑单行布局）
+    with st.expander("⚙️ API 设置" + (" ✅" if st.session_state.api_key else ""), expanded=not st.session_state.api_key):
+        c1, c2, c3, c4 = st.columns([1.2, 2, 2, 1])
+        model_options = {"Opus 4.5": "claude-opus-4-5-20251101", "Sonnet 4": "claude-sonnet-4-20250514"}
+        with c1:
+            sel = st.selectbox("模型", list(model_options.keys()), index=0 if st.session_state.api_model in ["", "claude-opus-4-5-20251101"] else 1, key="m_sel", label_visibility="collapsed")
+            st.session_state.api_model = model_options[sel]
+        with c2:
+            st.session_state.api_base_url = st.text_input("Base URL", value=st.session_state.api_base_url, placeholder="Base URL (可选)", key="m_url", label_visibility="collapsed")
+        with c3:
+            st.session_state.api_key = st.text_input("API Key", value=st.session_state.api_key, type="password", placeholder="API Key (留空用.env)", key="m_key", label_visibility="collapsed")
+        with c4:
+            if st.button("💾 保存", key="m_save", use_container_width=True):
+                from src.config import save_env_config
+                if save_env_config(api_key=st.session_state.api_key, base_url=st.session_state.api_base_url, model=st.session_state.api_model):
+                    st.toast("✅ 已保存到 .env")
+                else:
+                    st.toast("❌ 保存失败")
 
     # 流程说明
     st.markdown("""<div style="background: rgba(24, 24, 27, 0.4); border: 1px solid rgba(63, 63, 70, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin: 1.5rem 0;">
@@ -864,37 +896,36 @@ elif st.session_state.step == 4:
         with col3:
             st.metric("参考文献", f"{len(config.references)} 条")
 
-        # 下载按钮
+        # 下载按钮（缓存文件数据避免重复读取导致状态问题）
         st.markdown("###")
-        with open(output, 'rb') as f:
-            st.download_button(
-                "📥 下载 Word 文档",
-                data=f.read(),
-                file_name=Path(output).name,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
+        if 'thesis_file_data' not in st.session_state or st.session_state.get('thesis_file_path') != output:
+            with open(output, 'rb') as f:
+                st.session_state.thesis_file_data = f.read()
+                st.session_state.thesis_file_path = output
+
+        st.download_button(
+            "📥 下载 Word 文档",
+            data=st.session_state.thesis_file_data,
+            file_name=Path(output).name,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+            key="download_thesis_word"
+        )
 
         st.caption(f"📁 文件路径: `{output}`")
 
         st.warning("⚠️ **注意:** 生成内容仅供参考，建议替换为真实文献，提交前务必进行查重检测。")
 
-        # 步骤5选项卡
+        # 答辩稿工具提示
         st.markdown("###")
         st.markdown("""<div style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 1.25rem; margin: 1rem 0;">
-            <div style="color: #F59E0B; font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem;">🎓 需要生成答辩论文吗？</div>
-            <div style="color: #A1A1AA; font-size: 0.9rem;">基于您刚生成的论文，自动生成答辩陈述稿（AI检测率＜20%，查重率＜10%）</div>
+            <div style="color: #F59E0B; font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem;">🎓 需要生成答辩稿吗？</div>
+            <div style="color: #A1A1AA; font-size: 0.9rem;">请使用左侧导航栏的「🎤 答辩稿生成」工具，上传论文Word文档即可自动生成</div>
         </div>""", unsafe_allow_html=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🎤 生成答辩论文", type="primary", use_container_width=True):
-                st.session_state.step = 5
-                st.rerun()
-        with col2:
-            if st.button("🆕 开始新论文", use_container_width=True):
-                reset()
-                st.rerun()
+        if st.button("🆕 开始新论文", use_container_width=True):
+            reset()
+            st.rerun()
 
     except Exception as e:
         st.error(f"❌ 生成失败: {e}")
@@ -908,168 +939,3 @@ elif st.session_state.step == 4:
         if st.button("🆕 开始新论文", use_container_width=True):
             reset()
             st.rerun()
-
-# ============ 步骤 5: 生成答辩论文 ============
-elif st.session_state.step == 5:
-    st.markdown("## 🎤 生成答辩论文")
-
-    # 检查是否有论文配置
-    if st.session_state.thesis_config is None:
-        st.error("⚠️ 请先完成论文生成（步骤4）后再生成答辩论文")
-        if st.button("← 返回步骤4", use_container_width=True):
-            st.session_state.step = 4
-            st.rerun()
-    else:
-        config = st.session_state.thesis_config
-        cfg = MAJORS.get(st.session_state.major, {})
-
-        # 信息卡片
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("论文专业", f"{cfg.get('icon', '')} {st.session_state.major}")
-        with col2:
-            st.metric("论文章节", len(config.chapters))
-        with col3:
-            st.metric("预计时长", "8-10 分钟")
-
-        st.info(f"📝 **论文主题:** {config.title}")
-
-        st.markdown("###")
-
-        # 答辩稿说明
-        st.markdown("""<div style="background: rgba(24, 24, 27, 0.6); border: 1px solid rgba(63, 63, 70, 0.4); border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
-            <div style="color: #F59E0B; font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">📋 答辩陈述稿结构</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">🎬 开场白</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">问候 + 自我介绍 + 论文题目</div>
-                </div>
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">📖 选题背景</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">研究动机 + 理论实践意义</div>
-                </div>
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">📝 研究内容</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">各章节重点概述</div>
-                </div>
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">🔬 研究方法</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">方法论 + 研究过程</div>
-                </div>
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">💡 结论创新</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">主要结论 + 创新点</div>
-                </div>
-                <div style="background: rgba(10, 10, 12, 0.8); border-radius: 10px; padding: 1rem;">
-                    <div style="color: #FFFFFF; font-weight: 600; margin-bottom: 0.5rem;">🙏 致谢展望</div>
-                    <div style="color: #71717A; font-size: 0.85rem;">不足反思 + 感谢致辞</div>
-                </div>
-            </div>
-        </div>""", unsafe_allow_html=True)
-
-        # 质量保证提示
-        st.markdown("""<div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 1rem 1.25rem; margin: 1rem 0;">
-            <div style="color: #22C55E; font-size: 0.95rem;">
-                <span style="font-weight: 600;">✓ 质量保证</span>
-                <span style="color: #A1A1AA; margin-left: 1rem;">AI检测率 ＜ 20%</span>
-                <span style="color: #A1A1AA; margin-left: 1rem;">查重率 ＜ 10%</span>
-                <span style="color: #A1A1AA; margin-left: 1rem;">口语化表达</span>
-            </div>
-        </div>""", unsafe_allow_html=True)
-
-        st.markdown("###")
-
-        # 生成按钮
-        if st.session_state.defense_paper is None:
-            if st.button("🚀 开始生成答辩稿", type="primary", use_container_width=True):
-                progress_bar = st.progress(0, text="准备开始...")
-                status_text = st.empty()
-
-                try:
-                    wf = get_workflow()
-
-                    # 准备章节数据
-                    progress_bar.progress(10, text="📋 准备论文内容...")
-                    status_text.markdown("### 📋 正在提取论文要点...")
-
-                    chapters_data = []
-                    for ch in config.chapters:
-                        ch_title = ch.get('title', '')
-                        ch_content = config.sections.get(ch_title, '')
-                        chapters_data.append({
-                            "title": ch_title,
-                            "content": ch_content
-                        })
-
-                    # 生成答辩稿
-                    progress_bar.progress(30, text="🎤 生成答辩陈述稿...")
-                    status_text.markdown("### 🎤 正在生成答辩陈述稿...（约需60-90秒）")
-
-                    defense_paper = wf.generator.generate_defense_paper(
-                        title=config.title,
-                        abstract=config.abstract_cn or "",
-                        chapters=chapters_data,
-                        word_count=2500
-                    )
-
-                    # 保存结果
-                    st.session_state.defense_paper = defense_paper
-
-                    progress_bar.progress(100, text="✅ 完成!")
-                    status_text.empty()
-
-                    st.balloons()
-                    st.rerun()
-
-                except Exception as e:
-                    st.error(f"❌ 生成失败: {e}")
-                    import traceback
-                    with st.expander("查看错误详情"):
-                        st.code(traceback.format_exc())
-
-        # 显示生成结果
-        if st.session_state.defense_paper:
-            st.success("🎉 **答辩陈述稿生成完成!**")
-
-            # 统计信息
-            defense_text = st.session_state.defense_paper
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("稿件字数", f"{len(defense_text):,} 字")
-            with col2:
-                st.metric("预计时长", f"{len(defense_text) // 250}-{len(defense_text) // 200} 分钟")
-            with col3:
-                st.metric("AI检测率", "< 20%", delta="达标", delta_color="normal")
-
-            st.markdown("###")
-
-            # 显示答辩稿内容
-            st.markdown("#### 📄 答辩陈述稿内容")
-            st.markdown(f"""<div style="background: #16161a; border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 1.5rem; max-height: 500px; overflow-y: auto;">
-                <div style="color: #e4e4e7; line-height: 2; white-space: pre-wrap; font-size: 0.95rem;">{defense_text}</div>
-            </div>""", unsafe_allow_html=True)
-
-            st.markdown("###")
-
-            # 复制区域
-            st.text_area("📋 复制答辩稿", value=defense_text, height=150, key="copy_defense")
-
-            st.warning("⚠️ **温馨提示:** 请在答辩前多次练习朗读，调整语速和停顿，确保自然流畅。")
-
-        st.markdown("###")
-        st.divider()
-
-        # 操作按钮
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("← 返回步骤4", use_container_width=True):
-                st.session_state.step = 4
-                st.rerun()
-        with col2:
-            if st.session_state.defense_paper and st.button("🔄 重新生成", use_container_width=True):
-                st.session_state.defense_paper = None
-                st.rerun()
-        with col3:
-            if st.button("🆕 开始新论文", use_container_width=True):
-                reset()
-                st.rerun()

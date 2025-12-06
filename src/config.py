@@ -97,3 +97,61 @@ def get_config() -> Config:
     if _config is None:
         _config = Config()
     return _config
+
+
+def reset_config() -> Config:
+    """重置并重新加载全局配置实例"""
+    global _config
+    _config = None
+    return get_config()
+
+
+def save_env_config(api_key: str = None, base_url: str = None, model: str = None) -> bool:
+    """
+    保存API配置到.env文件
+
+    Args:
+        api_key: API Key
+        base_url: API Base URL
+        model: 模型名称
+
+    Returns:
+        是否保存成功
+    """
+    try:
+        project_root = Path(__file__).parent.parent
+        env_path = project_root / ".env"
+
+        # 读取现有内容
+        existing = {}
+        if env_path.exists():
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        existing[key.strip()] = value.strip()
+
+        # 更新配置
+        if api_key is not None and api_key.strip():
+            existing["ANTHROPIC_API_KEY"] = api_key.strip()
+        if base_url is not None and base_url.strip():
+            existing["ANTHROPIC_BASE_URL"] = base_url.strip()
+        if model is not None and model.strip():
+            existing["CLAUDE_MODEL"] = model.strip()
+
+        # 写回文件
+        with open(env_path, "w", encoding="utf-8") as f:
+            for key, value in existing.items():
+                f.write(key + "=" + value + "\n")
+
+        # 重新加载环境变量到当前进程
+        load_dotenv(env_path, override=True)
+
+        # 重置配置单例，强制重新加载
+        reset_config()
+
+        return True
+    except Exception as e:
+        print(f"保存配置失败: {e}")
+        return False
