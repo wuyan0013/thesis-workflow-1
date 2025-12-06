@@ -40,17 +40,20 @@ class TextProcessor:
     提供论文降重和降AIGC率功能
     """
 
-    def __init__(self, client=None, use_cli: bool = True):
+    def __init__(self, client=None, use_cli: bool = False, api_key: str = None, base_url: str = None, model: str = None):
         """
         初始化文本处理器
 
         Args:
             client: ClaudeClient 实例，如果为空则自动创建
-            use_cli: 是否使用 Claude CLI（默认 True，与主应用保持一致）
+            use_cli: 是否使用 Claude CLI（默认 False，使用 SDK 模式）
+            api_key: API Key（可选，为空则从 .env 读取）
+            base_url: API Base URL（可选，为空则从 .env 读取）
+            model: 模型名称（可选，为空则从 .env 读取）
         """
         if client is None:
             from .claude_client import ClaudeClient
-            client = ClaudeClient(use_cli=use_cli)
+            client = ClaudeClient(use_cli=use_cli, api_key=api_key, base_url=base_url, model=model)
         self.client = client
 
     def reduce_plagiarism(

@@ -459,3 +459,75 @@ rm -rf src/__pycache__ __pycache__ .streamlit/cache
 | 稳定 | 独立页面无Streamlit状态冲突问题 |
 | 复用 | 可单独使用，无需走完整论文生成流程 |
 
+
+
+---
+
+## 2025-12-06 论文降重/降AIGC率页面增加Word文档处理功能
+
+### 需求描述
+
+用户要求在论文降重和降AIGC率两个工具页面增加Word文档上传/下载功能，实现双模式处理界面。
+
+### 功能特性
+
+| 功能 | 实现 |
+|------|------|
+| 双标签页界面 | Word文档处理 + 文段单独处理 |
+| Word上传 | 支持 .docx 格式 |
+| 智能段落筛选 | 仅处理正文段落（>50字） |
+| 格式保留 | 严格保留标题、摘要、目录、参考文献、章节标题 |
+| Word下载 | 生成处理后的Word文档 |
+| 进度显示 | 批量处理进度条 |
+
+### 段落筛选规则
+
+| 跳过类型 | 关键词/规则 |
+|----------|-------------|
+| 摘要区域 | "摘要", "Abstract", "关键词", "Keywords" |
+| 目录 | "目录", "Contents" |
+| 参考文献 | "参考文献", "References"（及其后所有段落） |
+| 致谢附录 | "致谢", "附录", "Appendix" |
+| 章节标题 | "一、", "（一）", "1.", "第一章" 等 |
+| 标题样式 | Word 标题样式（Heading, 标题） |
+| 短段落 | 长度 < 50 字 |
+
+### 修改文件
+
+**1. pages/1_论文降重.py**
+
+| 修改项 | 说明 |
+|--------|------|
+| 新增导入 | `io`, `Document` from docx |
+| Session State | `plagiarism_doc_result`, `plagiarism_parsed_doc` |
+| 新增函数 | `parse_docx_for_rewrite()` - Word解析与段落筛选 |
+| 新增函数 | `create_processed_docx()` - 生成处理后Word |
+| UI重构 | 双标签页：Word文档处理 / 文段单独处理 |
+
+**2. pages/2_降AIGC率.py**
+
+| 修改项 | 说明 |
+|--------|------|
+| 新增导入 | `io`, `Document` from docx |
+| Session State | `aigc_doc_result`, `aigc_parsed_doc` |
+| 新增函数 | `parse_docx_for_humanize()` - Word解析与段落筛选 |
+| 新增函数 | `create_processed_docx()` - 生成处理后Word |
+| UI重构 | 双标签页：Word文档处理 / 文段单独处理 |
+
+### 使用流程
+
+1. 选择「📄 Word文档处理」标签页
+2. 上传论文 Word 文档（.docx）
+3. 系统自动解析，显示总段落数和可处理段落数
+4. 点击「开始处理」按钮
+5. 等待批量处理完成（显示进度条）
+6. 下载处理后的 Word 文档
+
+### 技术实现
+
+- 使用 `st.tabs()` 实现双模式切换
+- `Document` 类解析和生成 Word 文档
+- 段落筛选逻辑：跳过特殊区域，仅处理正文
+- 格式保留：替换段落文本时保留原有格式
+- Session State 缓存解析结果和处理结果
+
