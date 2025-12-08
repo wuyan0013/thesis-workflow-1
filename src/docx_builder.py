@@ -493,3 +493,51 @@ class DocxBuilder:
         self.doc.save(str(output_path))
 
         return output_path
+    def build_proposal_report(self, content: str, title: str = "") -> Path:
+        """
+        构建开题报告文档
+
+        Args:
+            content: Markdown格式的开题报告内容
+            title: 论文标题
+
+        Returns:
+            保存的文件路径
+        """
+        lines = content.split('\n')
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # 一级标题（### 一、...）
+            if line.startswith('### 一、') or line.startswith('### 二、') or line.startswith('### 三、') or line.startswith('### 四、') or line.startswith('### 五、'):
+                heading_text = line.replace('### ', '').strip()
+                self.add_heading1(heading_text, auto_number=False)
+
+            # 二级标题（#### 1. ...）
+            elif line.startswith('#### '):
+                heading_text = line.replace('#### ', '').strip()
+                self.add_heading2(heading_text, auto_number=False)
+
+            # 三级标题（**...：**）
+            elif line.startswith('**') and line.endswith('**') and '：' in line:
+                heading_text = line.strip('*').strip()
+                para = self.doc.add_paragraph()
+                run = para.add_run(heading_text)
+                run.bold = True
+                self._set_run_font(run, 'Times New Roman', '黑体', 12)
+
+            # 列表项
+            elif line.startswith('- ') or line.startswith('* '):
+                item_text = line[2:].strip()
+                self.add_paragraph('• ' + item_text, first_line_indent=False)
+
+            # 普通段落
+            elif not line.startswith('#'):
+                self.add_paragraph(line)
+
+        # 保存文档
+        filename = f"开题报告_{title}" if title else f"开题报告_{self.config.output_dir.name}"
+        return self.save(filename)

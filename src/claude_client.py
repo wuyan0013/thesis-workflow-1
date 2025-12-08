@@ -121,6 +121,28 @@ class ClaudeClient:
         except ImportError:
             raise Exception("anthropic 库未安装，请运行: pip install anthropic")
 
+
+    def _get_cli_env(self) -> dict:
+        """构建 CLI 环境变量，包含自定义 API 配置"""
+        from .config import get_config
+        config = get_config()
+
+        env = {**os.environ, 'PYTHONIOENCODING': 'utf-8'}
+
+        # 优先使用传入的 API Key，其次使用配置文件
+        api_key = self.api_key.strip() if self.api_key else None
+        api_key = api_key or config.claude_api_key
+        if api_key:
+            env['ANTHROPIC_API_KEY'] = api_key
+
+        # 优先使用传入的 Base URL，其次使用配置文件
+        base_url = self.base_url.strip() if self.base_url else None
+        base_url = base_url or config.claude_base_url
+        if base_url:
+            env['ANTHROPIC_BASE_URL'] = base_url
+
+        return env
+
     def generate(
         self,
         prompt: str,
@@ -139,7 +161,13 @@ class ClaudeClient:
             生成的文本内容
         """
         if self.use_cli:
-            return self._generate_cli(prompt, system_prompt)
+            try:
+                return self._generate_cli(prompt, system_prompt)
+            except Exception as cli_error:
+                print(f"[WARN] CLI 调用失败: {cli_error}，回退到 API...")
+                if not hasattr(self, 'client'):
+                    self._init_sdk()
+                return self._generate_sdk(prompt, system_prompt, max_tokens)
         else:
             return self._generate_sdk(prompt, system_prompt, max_tokens)
 
@@ -167,14 +195,15 @@ class ClaudeClient:
             cli_cmd = getattr(self, '_cli_cmd', 'claude')
 
             # 方案1: 使用管道输入 + JSON 输出（更可靠的编码处理）
-            cmd = f'type "{temp_file}" | "{cli_cmd}" -p --output-format json'
+            model = self.model_override or self.DEFAULT_MODEL
+            cmd = f'type "{temp_file}" | "{cli_cmd}" -p --model {model} --output-format json'
 
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 timeout=300,
                 shell=True,
-                env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}
+                env=self._get_cli_env()
             )
 
             # 解码输出
@@ -772,3 +801,112 @@ class ThesisGenerator:
 直接输出答辩陈述稿："""
 
         return self.client.generate(prompt, self.SYSTEM_PROMPT)
+
+    def generate_proposal_report(
+        self,
+        thesis_content: str,
+        title: str,
+        major: str = "",
+        start_date: str = "",
+        end_date: str = ""
+    ) -> dict:
+        """
+        Generate proposal report (kai ti bao gao) based on thesis content.
+
+        Args:
+            thesis_content: Full thesis content
+            title: Thesis title
+            major: Student's major
+            start_date: Research start date (format: YYYY年MM月DD日)
+            end_date: Research end date (format: YYYY年MM月DD日)
+
+        Returns:
+            dict with 'content' key containing the proposal report
+        """
+        major_info = f"\n专业：{major}" if major else ""
+        date_info = f"\n研究起止时间：{start_date} 至 {end_date}" if start_date and end_date else ""
+
+        prompt = f"""你是一位经验丰富的论文指导专家。请根据以下论文内容，撰写一份完整的开题报告。
+
+## 论文信息
+【论文标题】{title}{major_info}
+
+【论文内容摘要】
+{thesis_content[:8000]}
+
+## 开题报告结构要求（广西开放大学规范）
+
+请按以下结构生成开题报告：
+
+### 一、选题目的和意义
+1. 选题背景（200-300字）
+   - 研究课题的社会背景和学术背景
+   - 国内外研究现状概述
+
+2. 选题目的（150-200字）
+   - 本研究要解决的核心问题
+   - 研究的具体目标
+
+3. 选题意义（150-200字）
+   - 理论意义：对学科发展的贡献
+   - 实践意义：对实际工作的指导价值
+
+### 二、研究的主要内容、研究思路及研究方法
+1. 研究的主要内容（300-400字）
+   - 按章节概述研究内容
+   - 说明各部分之间的逻辑关系
+
+2. 研究思路（150-200字）
+   - 研究的总体框架
+   - 研究的逻辑路径
+
+3. 研究方法（200-250字）
+   - 文献研究法
+   - 案例分析法
+   - 其他适用的研究方法
+
+### 三、研究工作的进度安排
+根据研究起止时间（如有提供），按以下5个阶段安排具体日期：
+- 第一阶段：选题与资料收集（约占总时长15%）
+- 第二阶段：开题报告撰写（约占总时长10%）
+- 第三阶段：论文初稿撰写（约占总时长40%）
+- 第四阶段：论文修改完善（约占总时长25%）
+- 第五阶段：定稿与答辩准备（约占总时长10%）
+注意：请根据提供的起止时间计算每个阶段的具体日期范围
+
+### 四、论文框架（目录）
+根据论文内容，列出完整的论文目录结构，包括：
+- 摘要
+- 各章节标题及小节
+- 结论
+- 参考文献
+
+### 五、参考文献
+列出8-12篇参考文献，格式要求：
+- 使用GB/T 7714格式
+- 包含近5年的文献
+- 中外文献结合
+
+## 写作要求
+1. 语言要求：
+   - 使用学术性语言，避免口语化
+   - 表述准确、逻辑清晰
+   - 避免使用第一人称
+
+2. 格式要求：
+   - 使用Markdown格式
+   - 各部分用"## "或"### "标题分隔
+   - 适当使用列表和分段
+
+3. 字数要求：
+   - 总字数约2000-2500字
+
+## 输出要求
+- 直接输出开题报告全文
+- 不要有任何额外解释说明
+- 不要输出【注意】【建议】等标记
+
+直接输出开题报告："""
+
+        result = self.client.generate(prompt, self.SYSTEM_PROMPT)
+        return {"content": result}
